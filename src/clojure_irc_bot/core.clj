@@ -5,9 +5,12 @@
                PrintWriter FileReader]
            [org.ini4j Wini]))
 
+(def nickname (atom ""))
+
 (defn read-config [config-file-name]
     (let [ini-object  (Wini. (BufferedReader. (FileReader. config-file-name)))]
-          {:username (.get ini-object "botconfig" "username")
+          {:server (.get ini-object "botconfig" "server")
+           :username (.get ini-object "botconfig" "username")
            :nickname (.get ini-object "botconfig" "nickname")
            :channel (.get ini-object "botconfig" "channel")}))
 
@@ -31,10 +34,10 @@
     (.print (:toServer socket-info) (str "USER " username " " "0 " "* " ":clojure-irc-bot\r\n"))
     (.flush (:toServer socket-info)))
 
-(defn set-nickname [socket-info nickname]
+(defn send-nickname [socket-info nickname]
     "Sets the nickname of the bot"
-    (println (str "Sending: " "NICK " nickname)) ;DEBUG
-    (.print (:toServer socket-info) (str "NICK " nickname "\r\n"))
+    (println (str "Sending: " "NICK " @nickname)) ;DEBUG
+    (.print (:toServer socket-info) (str "NICK " @nickname "\r\n"))
     (.flush (:toServer socket-info)))
 
 (defn join-channel [socket-info channel]
@@ -43,13 +46,34 @@
     (.print (:toServer socket-info) (str "JOIN :" channel "\r\n"))
     (.flush (:toServer socket-info)))
 
-(defn privmsg-type [socket-info message]
-    "OTHER")
+(defn direct-command-type [socket-info message sender dest contents]
+  )
+(defmulti handle-direct-command direct-command-type)
+
+(defn get-privmsg-sender [message]
+  "Gets the sender of a message"
+  (first (re-seq #"^:\S+" message)))
+
+(defn get-privmsg-dest [message]
+  "Gets the destination of a message"
+  (nth (first (re-seq #"PRIVMSG ([\S]+)" message)) 1))
+
+(defn get-privmsg-contents [message]
+  "Gets the contents of a message"
+  (nth (first (re-seq #"PRIVMSG [\S]+ (.*)" message)) 1))
+
+(defn privmsg-type [socket-info message sender dest contents]
+    (if (or (= dest @nickname) (.startsWith (str ":" @nickname)))
+      :direct-command
+      :indirect-command))
 
 (defmulti handle-privmsg privmsg-type)
 
-(defmethod handle-privmsg :default [socket-info message]
-    (println (str "Received PRIVMSG\n" message)))
+(defmethod handle-privmsg :default [socket-info message sender dest contents]
+    (println (str "Received PRIVMSG"))
+    (println (str "Sender: " sender))
+    (println (str "Dest: " dest))
+    (println (str "Contents: " contents)))
 
 (defn message-type [socket-info message]
     (let [message-type (first (rest (re-seq #"[\S]+" message)))]
@@ -67,7 +91,9 @@
 (defmethod handle-message "PRIVMSG" [socket-info message]
     "Passes actual messages (as opposed to housekeeping stuff like PING to the
     subsytem responsible for dealing with these"
-    (handle-privmsg socket-info message))
+    (handle-privmsg socket-info message (get-privmsg-sender message) 
+      (get-privmsg-dest message)
+      (get-privmsg-contents message)))
 
 (defmethod handle-message :default [socket-info message]
     (println message))
@@ -82,9 +108,10 @@
   "I am an IRCBot"
   [& args]
   (let [bot-config (read-config "botconfig.ini")
-        socket-info (connect-to-server "localhost" 6667)]
+        socket-info (connect-to-server (:server bot-config) 6667)]
     (println "Opened socket") ;DEBUG
-    (set-nickname socket-info (:nickname bot-config))    
+    (swap! nickname str (:nickname bot-config))
+    (send-nickname socket-info nickname)    
     (set-username socket-info (:username bot-config))
     (join-channel socket-info (:channel bot-config))
     (event-loop socket-info)))
