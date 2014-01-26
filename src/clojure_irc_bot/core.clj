@@ -46,9 +46,23 @@
     (.print (:toServer socket-info) (str "JOIN :" channel "\r\n"))
     (.flush (:toServer socket-info)))
 
+(defn parse-nickname [sender-string]
+  (first (re-seq #"^:[\S]+!" sender-string)))
+
+(defn respond-to-direct-command [socket-info sender dest response]
+  (if (= dest @nickname)
+    (do 
+      (.print (:toServer socket-info) (str )))))
+
 (defn direct-command-type [socket-info message sender dest contents]
-  )
+  (cond 
+    (.startsWith (.toUpper contents) ":PING") :ping
+    (.startsWith (.toUpper contents) ":WEATHER") :weather))
+
 (defmulti handle-direct-command direct-command-type)
+
+(defmethod handle-direct-command :ping [socket-info message sender dest contents]
+  )
 
 (defn get-privmsg-sender [message]
   "Gets the sender of a message"
@@ -63,11 +77,25 @@
   (nth (first (re-seq #"PRIVMSG [\S]+ (.*)" message)) 1))
 
 (defn privmsg-type [socket-info message sender dest contents]
-    (if (or (= dest @nickname) (.startsWith (str ":" @nickname)))
+    (if (or (= dest @nickname) (.startsWith contents (str ":" @nickname)))
       :direct-command
       :indirect-command))
 
 (defmulti handle-privmsg privmsg-type)
+
+(defmethod handle-privmsg :direct-command [socket-info message sender dest contents]
+  (println "Received direct command")
+  (println message)
+  (println sender)
+  (println dest)
+  (println contents))
+
+(defmethod handle-privmsg :indirect-command [socket-info message sender dest contents]
+  (println "Received indirect command")
+  (println message)
+  (println sender)
+  (println dest)
+  (println contents))
 
 (defmethod handle-privmsg :default [socket-info message sender dest contents]
     (println (str "Received PRIVMSG"))
@@ -76,8 +104,12 @@
     (println (str "Contents: " contents)))
 
 (defn message-type [socket-info message]
-    (let [message-type (first (rest (re-seq #"[\S]+" message)))]
-        message-type))
+    "Gets the message type. I'm handling PING as a dirty special case because 
+    hybrid-ircd doesn't put a sender on PING, which screws up the regex."
+    (if (.contains message "PING")
+      "PING"
+      (let [message-type (first (rest (re-seq #"[\S]+" message)))]
+        message-type)))
 
 (defmulti handle-message message-type)
 
@@ -86,7 +118,8 @@
     (println (str "Received PING: " ping-message)) ;DEBUG
     (let [data-start-index (.indexOf ping-message ":")
           data (.substring ping-message (inc data-start-index))]
-        (.print (:toServer socket-info) (str "PONG :" data "\r\n"))))
+        (.print (:toServer socket-info) (str "PONG :" data "\r\n")) 
+        (.flush (:toServer socket-info))))
 
 (defmethod handle-message "PRIVMSG" [socket-info message]
     "Passes actual messages (as opposed to housekeeping stuff like PING to the
