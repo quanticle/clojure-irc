@@ -47,22 +47,36 @@
     (.flush (:toServer socket-info)))
 
 (defn parse-nickname [sender-string]
-  (first (re-seq #"^:[\S]+!" sender-string)))
+  (second (first (re-seq #"^:([\S]+)!" sender-string))))
 
 (defn respond-to-direct-command [socket-info sender dest response]
   (if (= dest @nickname)
     (do 
-      (.print (:toServer socket-info) (str )))))
+      (println "Sending: " (str "PRIVMSG " (parse-nickname sender) " :" response)) ;DEBUG
+      (.print (:toServer socket-info) (str "PRIVMSG " (parse-nickname sender) " :" response "\r\n"))
+      (.flush (:toServer socket-info)))
+    (do
+      (println "Responding to channel " dest) ;DEBUG
+      (println "Sending: " (str "PRIVMSG " dest " :\"" (parse-nickname sender) ": " response) "\"") ;DEBUG
+      (.print (:toServer socket-info) (str "PRIVMSG " dest " :" (parse-nickname sender) ": " response "\r\n"))
+      (.flush (:toServer socket-info)))))
 
 (defn direct-command-type [socket-info message sender dest contents]
   (cond 
-    (.startsWith (.toUpper contents) ":PING") :ping
-    (.startsWith (.toUpper contents) ":WEATHER") :weather))
+    (.contains (.toUpperCase contents) "PING") :ping
+    (.contains (.toUpperCase contents) "WEATHER") :weather))
 
 (defmulti handle-direct-command direct-command-type)
 
 (defmethod handle-direct-command :ping [socket-info message sender dest contents]
-  )
+  (respond-to-direct-command socket-info sender dest "pong"))
+
+(defmethod handle-direct-command :default [socket-info message sender dest contents]
+  (println "Received unrecognized direct command") ;DEBUG
+  (println "Sender: " sender) ;DEBUG
+  (println "Dest:" dest) ;DEBUG
+  (println "Contents:" contents) ;DEBUG
+  (respond-to-direct-command socket-info sender dest "meow"))
 
 (defn get-privmsg-sender [message]
   "Gets the sender of a message"
@@ -84,11 +98,7 @@
 (defmulti handle-privmsg privmsg-type)
 
 (defmethod handle-privmsg :direct-command [socket-info message sender dest contents]
-  (println "Received direct command")
-  (println message)
-  (println sender)
-  (println dest)
-  (println contents))
+  (handle-direct-command socket-info message sender dest contents))
 
 (defmethod handle-privmsg :indirect-command [socket-info message sender dest contents]
   (println "Received indirect command")
@@ -106,7 +116,7 @@
 (defn message-type [socket-info message]
     "Gets the message type. I'm handling PING as a dirty special case because 
     hybrid-ircd doesn't put a sender on PING, which screws up the regex."
-    (if (.contains message "PING")
+    (if (.startsWith message "PING")
       "PING"
       (let [message-type (first (rest (re-seq #"[\S]+" message)))]
         message-type)))
