@@ -1,11 +1,13 @@
 (ns clojure-irc-bot.core
   (:gen-class)
+  (:use [clojure.string :only [upper-case]])
   (:import [java.net Socket]
            [java.io InputStreamReader BufferedReader OutputStreamWriter 
                PrintWriter FileReader]
            [org.ini4j Wini]))
 
-(def nickname (atom ""))
+(def nickname (ref ""))
+(def indirect-command-handlers (ref ()))
 
 (defn read-config [config-file-name]
     (let [ini-object  (Wini. (BufferedReader. (FileReader. config-file-name)))]
@@ -49,7 +51,9 @@
 (defn parse-nickname [sender-string]
   (second (first (re-seq #"^:([\S]+)!" sender-string))))
 
-(defn respond-to-direct-command [socket-info sender dest response]
+(defn respond [socket-info sender dest response]
+  "Respond to a message. Responses to a channel are prefixed with the asking 
+  username, so the user knows that they're being responded to."
   (if (= dest @nickname)
     (do 
       (println "Sending: " (str "PRIVMSG " (parse-nickname sender) " :" response)) ;DEBUG
@@ -61,22 +65,28 @@
       (.print (:toServer socket-info) (str "PRIVMSG " dest " :" (parse-nickname sender) ": " response "\r\n"))
       (.flush (:toServer socket-info)))))
 
+
+(defn run-indirect-command [socket-info sender dest contents handler] 
+  "Run an indirect command handler against the given contents, and return the results"
+  (let [output ((:function handler) (re-seq (:regex handler) contents))]
+    (if (not (= output ""))
+      (respond socket-info sender dest output))))
+
+(defn handle-indirect-command [socket-info sender dest contents]
+  (map #(run-indirect-command socket-info sender dest contents %) @indirect-command-handlers))
+
 (defn direct-command-type [socket-info message sender dest contents]
   (cond 
-    (.contains (.toUpperCase contents) "PING") :ping
-    (.contains (.toUpperCase contents) "WEATHER") :weather))
+    (.contains (upper-case contents) "PING") :ping
+    (.contains (upper-case contents) "WEATHER") :weather))
 
 (defmulti handle-direct-command direct-command-type)
 
 (defmethod handle-direct-command :ping [socket-info message sender dest contents]
-  (respond-to-direct-command socket-info sender dest "pong"))
+  (respond socket-info sender dest "pong"))
 
 (defmethod handle-direct-command :default [socket-info message sender dest contents]
-  (println "Received unrecognized direct command") ;DEBUG
-  (println "Sender: " sender) ;DEBUG
-  (println "Dest:" dest) ;DEBUG
-  (println "Contents:" contents) ;DEBUG
-  (respond-to-direct-command socket-info sender dest "meow"))
+  (respond socket-info sender dest "meow"))
 
 (defn get-privmsg-sender [message]
   "Gets the sender of a message"
@@ -153,7 +163,7 @@
   (let [bot-config (read-config "botconfig.ini")
         socket-info (connect-to-server (:server bot-config) 6667)]
     (println "Opened socket") ;DEBUG
-    (swap! nickname str (:nickname bot-config))
+    (dosync (ref-set nickname (:nickname bot-config)))
     (send-nickname socket-info nickname)    
     (set-username socket-info (:username bot-config))
     (join-channel socket-info (:channel bot-config))
