@@ -17,10 +17,10 @@
 
 (defmulti handle-privmsg privmsg-type)
 
-(defmethod handle-privmsg :direct-command [socket-info message sender dest contents]
-  (handle-direct-command socket-info @nickname message sender dest contents))
+(defmethod handle-privmsg :direct-command [socket-info my-nickname message sender dest contents]
+  (handle-direct-command socket-info my-nickname message sender dest contents))
 
-(defmethod handle-privmsg :indirect-command [socket-info message sender dest contents]
+(defmethod handle-privmsg :indirect-command [socket-info my-nickname message sender dest contents]
   (println "Received indirect command")
   (println message)
   (println sender)
