@@ -1,7 +1,7 @@
 (ns clojure-irc-bot.core
   (:gen-class)
   (:use [clojure.string :only [upper-case]]
-    [clojure-irc-bot common direct-commands indirect-commands])
+    [clojure-irc-bot common direct-commands indirect-commands weather])
   (:import [java.net Socket]
     [java.io InputStreamReader BufferedReader OutputStreamWriter PrintWriter 
       FileReader]
@@ -74,6 +74,7 @@
         socket-info (connect-to-server (:server bot-config) 6667)]
     (println "Opened socket") ;DEBUG
     (dosync (ref-set nickname (:nickname bot-config)))
+    (dosync (ref-set wunderground-api-key (:wunderground-api-key bot-config)))
     (send-nickname socket-info nickname)    
     (set-username socket-info (:username bot-config))
     (join-channel socket-info (:channel bot-config))

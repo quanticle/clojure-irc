@@ -14,7 +14,14 @@
   (respond socket-info my-nickname sender dest "pong"))
 
 (defmethod handle-direct-command :weather [socket-info my-nickname message sender dest contents]
-  )
+  (let [location (first (rest (first (re-seq #"^\S*\s*\S*\s*(.*)$" contents))))]
+    (try
+      (let [weather-data (get-weather location)
+            weather-str (str "Weather in " (:city-name weather-data) ", " (:country-name weather-data) ": " (:temp-f weather-data) "F/" (:temp-c weather-data) "C Conditions: " (:conditions weather-data))]
+        (respond socket-info my-nickname sender dest weather-str))
+      (catch Exception e
+        (respond socket-info my-nickname sender dest (str "Could not get weather for " location ". Please try specifying a country-code (e.g. London, UK)"))))))
+      
 
 (defmethod handle-direct-command :default [socket-info my-nickname message sender dest contents]
   (respond socket-info my-nickname sender dest "meow"))

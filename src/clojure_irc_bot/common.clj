@@ -11,7 +11,8 @@
           {:server (.get ini-object "botconfig" "server")
            :username (.get ini-object "botconfig" "username")
            :nickname (.get ini-object "botconfig" "nickname")
-           :channel (.get ini-object "botconfig" "channel")}))
+           :channel (.get ini-object "botconfig" "channel")
+           :wunderground-api-key (.get ini-object "botconfig" "wunderground-api-key")}))
 
 (defn connect-to-server [server port]
     "Connect to a server and return a data structure with the socket, input stream and output stream

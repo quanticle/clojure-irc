@@ -1,36 +1,70 @@
 (ns clojure-irc-bot.weather 
   (:use [clojure.string :only (split join)])
   (:require [clj-http.client :as client]
-            [clojure.data.json :as json]))
+            [clojure.data.json :as json]
+            [clojure.data.csv :as csv]
+            [clojure.java.io :as io]))
 
+(defrecord Place [city-name country-code population latitude longitude])
 (def weather-cache (ref {}))
+(def places (ref #{}))
+(def wunderground-api-key (ref ""))
 
-(defn k-to-f [kelvin-temp]
-    (+ (* (/ 9 5) (- kelvin-temp 273)) 32))
+(defn load-places [place-file]
+  (with-open [in-file (io/reader place-file)]
+    (let [csv-lines (csv/read-csv in-file :separator \tab :quote \u0000)
+          place-records (map #(Place. (% 2) (% 8) (Integer/parseInt (% 14)) (% 4) (% 5)) csv-lines)] 
+      (dosync (alter places into place-records)))))
 
-(defn k-to-c [kelvin-temp]
-    (- kelvin-temp 273))
+(defn get-place 
+  ([place-name]
+    (if (empty? @places)
+      (load-places "cities5000.txt"))
+    (first (sort-by :population > (filter #(.contains (.toUpperCase (:city-name %)) (.toUpperCase place-name)) @places))))
+  ([place-name country-code]
+    (if (empty? @places)
+      (load-places "cities5000.txt"))
+    (if (= (.toUpperCase country-code) "UK")
+      (first (sort-by :population > 
+        (filter #(and (.contains (.toUpperCase (:city-name %)) (.toUpperCase place-name)) (= (:country-code %) "GB")) @places)))
+      (first (sort-by :population > 
+        (filter #(and (.contains (.toUpperCase (:city-name %)) (.toUpperCase place-name)) (= (:country-code %) (.toUpperCase country-code))) 
+          @places))))))
 
-(defn get-weather-data [location]
+(defn extract-weather-values [api-data]
+  {:city-name (:city (:display_location (:current_observation api-data))),
+   :country-name (:country (:display_location (:current_observation api-data))),
+   :temp-f (:temp_f (:current_observation api-data)),
+   :temp-c (:temp_c (:current_observation api-data)),
+   :conditions (:weather (:current_observation api-data))})
+
+(defn get-weather-data [lat lon]
   "Actually get the weather data from the API"
-  (let [location-query (join "," (split location #"[^a-zA-Z]"))
-        response-map (client/get (str "http://api.openweathermap.org/data/2.5/weather?q=" location-query))
-        response-data (json/read-str (:body response-map) :key-fn keyword)]
-    {:city-name (:name response-data),
-     :country-name (:country (:sys response-data)),
-     :temp-f (k-to-f (:temp (:main response-data))),
-     :temp-c (k-to-c (:temp (:main response-data))),
-     :conditions (:main (first (:weather response-data)))}))
+  (try
+    (let [response-map (client/get (str "http://api.wunderground.com/api/" @wunderground-api-key "/conditions/q/" lat "," lon ".json"))
+          response-data (json/read-str (:body response-map) :key-fn keyword)]
+      (extract-weather-values response-data))
+    (catch Exception e
+      (println "DEBUG: " e)
+      (throw (Exception. "Error retrieving weather data")))))
 
 (defn get-weather [location]
   "Get the weather data from the cache, or, if it's not in the cache, try to look it up from the server"
   (if (and (@weather-cache location) (< (- (System/currentTimeMillis) (:retrieval-time (@weather-cache location))) 300000))
-    ;; If the data is in the cache and the cache entry isn't stale, return the data from the cache
     (:weather-data (@weather-cache location))
-    ;; Otherwise, get the data, add it to the cache and return it
-    (do
-      (let [weather-data (get-weather-data location)
-            current-time (System/currentTimeMillis)]
-        (dosync (alter weather-cache assoc location {:weather-data weather-data :retrieval-time current-time}))
-        weather-data))))
-
+    (let [[_ city country-code] (first (re-seq #"^([^,]+),?[^A-Za-z]*(.*)" location))
+          current-time (System/currentTimeMillis)]
+      (if (empty? country-code)
+        (let [place (get-place city)]
+          (if (nil? place)
+            (throw (Exception. "Could not find city"))
+            (let [weather-data (get-weather-data (:latitude place) (:longitude place))]
+              (dosync (alter weather-cache assoc location {:weather-data weather-data :retrieval-time current-time}))
+              weather-data)))
+        (let [place (get-place city country-code)]
+          (if (nil? place)
+            (throw (Exception. "Could not find city"))
+            (let [weather-data (get-weather-data (:latitude place) (:longitude place))]
+              (dosync (alter weather-cache assoc location {:weather-data weather-data :retrieval-time current-time}))
+              (println "Weather data: " weather-data) ;;DEBUG
+              weather-data)))))))
