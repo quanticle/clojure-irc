@@ -9,7 +9,6 @@
 
 (def nickname (ref ""))
 (def indirect-command-handlers (ref ()))
-
 (defn privmsg-type [socket-info my-nickname message sender dest contents]
     (if (or (= dest @nickname) (.startsWith contents (str ":" @nickname)))
       :direct-command
@@ -75,6 +74,7 @@
     (println "Opened socket") ;DEBUG
     (dosync (ref-set nickname (:nickname bot-config)))
     (dosync (ref-set wunderground-api-key (:wunderground-api-key bot-config)))
+    (dosync (alter special-greeting into (:special-greeting-nicks bot-config)))
     (send-nickname socket-info nickname)    
     (set-username socket-info (:username bot-config))
     (join-channel socket-info (:channel bot-config))

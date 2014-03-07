@@ -1,6 +1,6 @@
 (ns clojure-irc-bot.common
   (:gen-class)
-  (:use [clojure.string :only [upper-case]])
+  (:require [clojure.string :as string])
   (:import [java.net Socket]
     [java.io InputStreamReader BufferedReader OutputStreamWriter PrintWriter 
       FileReader]
@@ -12,7 +12,8 @@
            :username (.get ini-object "botconfig" "username")
            :nickname (.get ini-object "botconfig" "nickname")
            :channel (.get ini-object "botconfig" "channel")
-           :wunderground-api-key (.get ini-object "botconfig" "wunderground-api-key")}))
+           :wunderground-api-key (.get ini-object "botconfig" "wunderground-api-key")
+           :special-greeting-nicks (string/split (.get ini-object "botconfig" "special-greeting") #",\s*")}))
 
 (defn connect-to-server [server port]
     "Connect to a server and return a data structure with the socket, input stream and output stream
