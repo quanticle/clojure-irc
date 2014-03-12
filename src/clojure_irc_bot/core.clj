@@ -8,7 +8,6 @@
     [org.ini4j Wini]))
 
 (def nickname (ref ""))
-(def indirect-command-handlers (ref ()))
 (defn privmsg-type [socket-info my-nickname message sender dest contents]
     (if (or (= dest @nickname) (.startsWith contents (str ":" @nickname)))
       :direct-command
