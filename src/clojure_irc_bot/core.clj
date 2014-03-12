@@ -9,7 +9,7 @@
 
 (def nickname (ref ""))
 (defn privmsg-type [socket-info my-nickname message sender dest contents]
-    (if (or (= dest @nickname) (.startsWith contents (str ":" @nickname)))
+    (if (or (= dest my-nickname) (.startsWith contents (str ":" my-nickname)))
       :direct-command
       :indirect-command))
 
