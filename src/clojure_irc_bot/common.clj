@@ -13,7 +13,8 @@
            :nickname (.get ini-object "botconfig" "nickname")
            :channel (.get ini-object "botconfig" "channel")
            :wunderground-api-key (.get ini-object "botconfig" "wunderground-api-key")
-           :special-greeting-nicks (string/split (.get ini-object "botconfig" "special-greeting") #",\s*")}))
+           :special-greeting-nicks (string/split (.get ini-object "botconfig" "special-greeting") #",\s*")
+           :google-api-key (.get ini-object "botconfig" "google-api-key")}))
 
 (defn connect-to-server [server port]
     "Connect to a server and return a data structure with the socket, input stream and output stream
@@ -50,19 +51,27 @@
 (defn parse-nickname [sender-string]
   (second (first (re-seq #"^:([\S]+)!" sender-string))))
 
-(defn respond [socket-info my-nickname sender dest response]
+(defn respond 
   "Respond to a message. Responses to a channel are prefixed with the asking 
-  username, so the user knows that they're being responded to."
-  (if (= dest my-nickname)
-    (do 
-      (println "Sending: " (str "PRIVMSG " (parse-nickname sender) " :" response)) ;DEBUG
-      (.print (:toServer socket-info) (str "PRIVMSG " (parse-nickname sender) " :" response "\r\n"))
-      (.flush (:toServer socket-info)))
-    (do
-      (println "Responding to channel " dest) ;DEBUG
-      (println "Sending: " (str "PRIVMSG " dest " :\"" (parse-nickname sender) ": " response) "\"") ;DEBUG
-      (.print (:toServer socket-info) (str "PRIVMSG " dest " :" (parse-nickname sender) ": " response "\r\n"))
-      (.flush (:toServer socket-info)))))
+  username, so the user knows that they're being responded to. If multiple are
+  provided, each response will be sent on its own line (be careful not to flood)"
+  ([socket-info my-nickname sender dest response]
+    (if (= dest my-nickname)
+      (do 
+        (println "Sending: " (str "PRIVMSG " (parse-nickname sender) " :" response)) ;DEBUG
+        (.print (:toServer socket-info) (str "PRIVMSG " (parse-nickname sender) " :" response "\r\n"))
+        (.flush (:toServer socket-info)))
+      (do
+        (println "Responding to channel " dest) ;DEBUG
+        (println "Sending: " (str "PRIVMSG " dest " :\"" (parse-nickname sender) ": " response) "\"") ;DEBUG
+        (.print (:toServer socket-info) (str "PRIVMSG " dest " :" (parse-nickname sender) ": " response "\r\n"))
+        (.flush (:toServer socket-info)))))
+  ([socket-info my-nickname sender dest response & more-responses]
+    (let [all-responses (cons response more-responses)]
+      (loop [responses all-responses]
+        (when (not (empty? responses))
+          (respond socket-info my-nickname sender dest (first responses))
+          (recur (rest response)))))))
 
 (defn get-privmsg-sender [message]
   "Gets the sender of a message"

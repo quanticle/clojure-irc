@@ -8,9 +8,8 @@
     [org.ini4j Wini]))
 
 (def nickname (ref ""))
-(def indirect-command-handlers (ref ()))
 (defn privmsg-type [socket-info my-nickname message sender dest contents]
-    (if (or (= dest @nickname) (.startsWith contents (str ":" @nickname)))
+    (if (or (= dest my-nickname) (.startsWith contents (str ":" my-nickname)))
       :direct-command
       :indirect-command))
 
@@ -21,10 +20,7 @@
 
 (defmethod handle-privmsg :indirect-command [socket-info my-nickname message sender dest contents]
   (println "Received indirect command")
-  (println message)
-  (println sender)
-  (println dest)
-  (println contents))
+  (handle-indirect-command socket-info my-nickname message sender dest contents))
 
 (defmethod handle-privmsg :default [socket-info message sender dest contents]
     (println (str "Received PRIVMSG"))
@@ -74,6 +70,7 @@
     (println "Opened socket") ;DEBUG
     (dosync (ref-set nickname (:nickname bot-config)))
     (dosync (ref-set wunderground-api-key (:wunderground-api-key bot-config)))
+    (dosync (ref-set google-api-key (:google-api-key bot-config)))
     (dosync (alter special-greeting into (:special-greeting-nicks bot-config)))
     (send-nickname socket-info nickname)    
     (set-username socket-info (:username bot-config))
