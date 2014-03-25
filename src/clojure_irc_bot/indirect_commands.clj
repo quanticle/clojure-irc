@@ -17,8 +17,8 @@
             json-response (json/read-str (:body response-map) :key-fn keyword)]
         (if (= (:totalResults (:pageInfo json-response)) 0)
           nil
-          (str "Youtube Video: " (:title (:snippet ((:items json-response) 0))) " " (parse-duration (:duration (:contentDetails ((:items json-response) 0)))) " (" 
-            (:viewCount (:statistics ((:items json-response) 0))) " views " (:likeCount (:statistics ((:items json-response) 0))) " likes " 
+          (str "Youtube Video: " \u0002 (:title (:snippet ((:items json-response) 0))) " " (parse-duration (:duration (:contentDetails ((:items json-response) 0)))) \u000f " (" 
+            (:viewCount (:statistics ((:items json-response) 0))) " views, " (:likeCount (:statistics ((:items json-response) 0))) " likes, " 
             (:dislikeCount (:statistics ((:items json-response) 0))) " dislikes)"))))))
 
 
