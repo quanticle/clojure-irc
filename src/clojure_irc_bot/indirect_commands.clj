@@ -23,7 +23,7 @@
 
 (defn wikilink [message]
   (let [link-texts (map second (re-seq #"\[\[([^\]]*)\]\]" message))]
-    (when (not (nil? link-texts))
+    (when (not (empty? link-texts))
       (reduce #(str %1 " " %2) (map #(str "http://en.wikipedia.org/wiki/" (string/replace %1 " " "_")) link-texts)))))
 
 (defn handle-indirect-command [socket-info my-nickname message sender dest contents]
