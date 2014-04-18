@@ -1,8 +1,8 @@
 (ns clojure-irc-bot.indirect-commands
-  (:use [clojure.string :only [upper-case]]
-    [clojure-irc-bot common])
+  (:use [clojure-irc-bot common])
   (:require [clj-http.client :as client]
-            [clojure.data.json :as json]))
+            [clojure.data.json :as json]
+            [clojure.string :as string]))
 
 (def indirect-command-handlers (ref ()))
 (def google-api-key (ref ""))
@@ -21,6 +21,10 @@
             (:viewCount (:statistics ((:items json-response) 0))) " views, " (:likeCount (:statistics ((:items json-response) 0))) " likes, " 
             (:dislikeCount (:statistics ((:items json-response) 0))) " dislikes)"))))))
 
+(defn wikilink [message]
+  (let [link-texts (map second (re-seq #"\[\[([^\]]*)\]\]" message))]
+    (when (not (nil? link-texts))
+      (reduce #(str %1 " " %2) (map #(str "http://en.wikipedia.org/wiki/" (string/replace %1 " " "_")) link-texts)))))
 
 (defn handle-indirect-command [socket-info my-nickname message sender dest contents]
   (let [command-responses (filter #(not (nil? %)) (map #(% contents) @indirect-command-handlers))]
@@ -28,3 +32,4 @@
       (apply respond socket-info my-nickname sender dest command-responses))))
 
 (dosync (alter indirect-command-handlers conj youtube-links))
+(dosync (alter indirect-command-handlers conj wikilink))
