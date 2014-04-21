@@ -2,7 +2,8 @@
   (:use [clojure-irc-bot common])
   (:require [clj-http.client :as client]
             [clojure.data.json :as json]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [clj-time.format :as time-format]))
 
 (def indirect-command-handlers (ref ()))
 (def google-api-key (ref ""))
