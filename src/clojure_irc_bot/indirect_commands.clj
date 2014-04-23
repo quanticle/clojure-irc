@@ -2,14 +2,16 @@
   (:use [clojure-irc-bot common])
   (:require [clj-http.client :as client]
             [clojure.data.json :as json]
-            [clojure.string :as string]
-            [clj-time.format :as time-format]))
+            [clojure.string :as string])
+  (:import [org.joda.time.format ISOPeriodFormat]))
 
 (def indirect-command-handlers (ref ()))
 (def google-api-key (ref ""))
 
 (defn parse-duration [duration-string]
-  "")
+  (let [timeFormatter (ISOPeriodFormat/standard)
+        video-length (.parsePeriod timeFormatter duration-string)]
+    (str (format "%02d" (.getHours video-length)) ":" (format "%02d" (.getMinutes video-length)) ":" (format "%02d" (.getSeconds video-length)))))
 
 (defn youtube-links [message]
   (let [video-id (second (first (re-seq #"http(?:s?)://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-\_]+)(&(amp;)?[\w\?=]*)?" message)))]

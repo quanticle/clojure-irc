@@ -8,7 +8,7 @@
                  [clj-http "0.7.9"]
                  [org.clojure/data.json "0.2.4"]
                  [org.clojure/data.csv "0.1.2"]
-                 [clj-time "0.7.0"]]
+                 [joda-time/joda-time "2.3"]]
   :main ^:skip-aot clojure-irc-bot.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}})
