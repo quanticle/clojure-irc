@@ -14,13 +14,13 @@
     (str (format "%02d" (.getHours video-length)) ":" (format "%02d" (.getMinutes video-length)) ":" (format "%02d" (.getSeconds video-length)))))
 
 (defn youtube-links [message]
-  (let [video-id (second (first (re-seq #"http(?:s?)://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-\_]+)(&(amp;)?[\w\?=]*)?" message)))]
+  (let [video-id (second (first (or (re-seq #"youtube.com/watch.*v=([a-zA-Z0-9\-_]*)" message) (re-seq #"youtu.be/(.*)" message))))]
     (when (not (nil? video-id))
       (let [response-map (client/get (str "https://www.googleapis.com/youtube/v3/videos?part=snippet%2CcontentDetails%2Cstatistics&id=" video-id "&key=" @google-api-key))
             json-response (json/read-str (:body response-map) :key-fn keyword)]
         (if (= (:totalResults (:pageInfo json-response)) 0)
           nil
-          (str "Youtube Video: " \u0002 (:title (:snippet ((:items json-response) 0))) " " (parse-duration (:duration (:contentDetails ((:items json-response) 0)))) \u000f " (" 
+          (str "Youtube Video: " \u0002 (:title (:snippet ((:items json-response) 0))) \u000f " (" (parse-duration (:duration (:contentDetails ((:items json-response) 0))))  " " 
             (:viewCount (:statistics ((:items json-response) 0))) " views, " (:likeCount (:statistics ((:items json-response) 0))) " likes, " 
             (:dislikeCount (:statistics ((:items json-response) 0))) " dislikes)"))))))
 
