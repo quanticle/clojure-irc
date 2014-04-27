@@ -65,13 +65,7 @@
         (println "Responding to channel " dest) ;DEBUG
         (println "Sending: " (str "PRIVMSG " dest " :\"" (parse-nickname sender) ": " response) "\"") ;DEBUG
         (.print (:toServer socket-info) (str "PRIVMSG " dest " :" (parse-nickname sender) ": " response "\r\n"))
-        (.flush (:toServer socket-info)))))
-  ([socket-info my-nickname sender dest response & more-responses]
-    (let [all-responses (cons response more-responses)]
-      (loop [responses all-responses]
-        (when (not (empty? responses))
-          (respond socket-info my-nickname sender dest (first responses))
-          (recur (rest response)))))))
+        (.flush (:toServer socket-info))))))
 
 (defn get-privmsg-sender [message]
   "Gets the sender of a message"
