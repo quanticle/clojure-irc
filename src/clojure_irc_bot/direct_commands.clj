@@ -15,13 +15,22 @@
   (respond socket-info my-nickname sender dest "pong"))
 
 (defmethod handle-direct-command :weather [socket-info my-nickname message sender dest contents]
-  (let [location (first (rest (first (re-seq #"^\S*\s*\S*\s*(.*)$" contents))))]
-    (try
-      (let [weather-data (get-weather location)
-            weather-str (str "Weather in " (:name weather-data) ": " (:temp-f weather-data) "F/" (:temp-c weather-data) "C Conditions: " (:conditions weather-data))]
-        (respond socket-info my-nickname sender dest weather-str))
-      (catch Exception e
-        (respond socket-info my-nickname sender dest (str "Could not get weather for " location ". Please try specifying a country-code (e.g. London, UK)"))))))
+  (println "Received weather command: " contents) ;DEBUG
+  (if (.startsWith contents (str ":" my-nickname))
+    (let [location (second (first (re-seq #"^\S*\s*\S*\s*(.*)$" contents)))]
+      (try
+        (let [weather-data (get-weather location)
+              weather-str (str "Weather in " (:name weather-data) ": " (:temp-f weather-data) "F/" (:temp-c weather-data) "C Conditions: " (:conditions weather-data))]
+          (respond socket-info my-nickname sender dest weather-str))
+        (catch Exception e
+          (respond socket-info my-nickname sender dest (str "Could not get weather for " location ". Please try specifying a country-code (e.g. London, UK)")))))
+    (let [location (second (first (re-seq #":\S+\s*(.*)$" contents)))]
+      (try
+        (let [weather-data (get-weather location)
+              weather-str (str "Weather in " (:name weather-data) ": " (:temp-f weather-data) "F/" (:temp-c weather-data) "C Conditions: " (:conditions weather-data))]
+          (respond socket-info my-nickname sender dest weather-str))
+        (catch Exception e
+          (respond socket-info my-nickname sender dest (str "Could not get weather for " location ". Please try specifying a country-code (e.g. London, UK)")))))))
       
 
 (defmethod handle-direct-command :default [socket-info my-nickname message sender dest contents]
