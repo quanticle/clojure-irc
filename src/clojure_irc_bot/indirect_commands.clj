@@ -25,7 +25,7 @@
        :dislikes (:dislikeCount (:statistics ((:items json-response) 0)))})))
 
 (defn extract-video-ids [message]
-  (let [long-url-ids (map second (re-seq #"youtube.com/watch[^ ]v=([a-zA-Z0-9\-_]+)" message))
+  (let [long-url-ids (map second (re-seq #"youtube.com/watch[^ ]*v=([a-zA-Z0-9\-_]+)" message))
         short-url-ids (map second (re-seq #"youtu.be/([a-zA-Z0-9\-_]+)" message))]
     (into long-url-ids short-url-ids)))
 
