@@ -5,7 +5,8 @@
   (:import [java.net Socket]
     [java.io InputStreamReader BufferedReader OutputStreamWriter PrintWriter 
       FileReader]
-    [org.ini4j Wini]))
+    [org.ini4j Wini]
+    [org.joda.time DateTime]))
 
 (def nickname (ref ""))
 (defn privmsg-type [socket-info my-nickname message sender dest contents]
@@ -40,7 +41,7 @@
 
 (defmethod handle-message "PING" [socket-info ping-message]
     "Returns a pong message with the data from the ping message"
-    (println (str "Received PING: " ping-message)) ;DEBUG
+    (println (str (.toString (DateTime.)) " " "Received PING: " ping-message)) ;DEBUG
     (let [data-start-index (.indexOf ping-message ":")
           data (.substring ping-message (inc data-start-index))]
         (.print (:toServer socket-info) (str "PONG :" data "\r\n")) 
